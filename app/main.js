@@ -48,6 +48,7 @@ function createWindow() {
     focusable: false,
     hasShadow: false,
     fullscreenable: false,
+    enableLargerThanScreen: true, // allow the window into the Dock's region
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
