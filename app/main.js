@@ -55,7 +55,7 @@ function createWindow() {
     },
   });
 
-  win.setAlwaysOnTop(true, "screen-saver");
+  win.setAlwaysOnTop(true, "floating"); // above content, BELOW the Dock
   win.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
     skipTransformProcessType: true,
@@ -101,7 +101,7 @@ function fire() {
       height: WIN_H,
     });
   } catch (_) {}
-  win.setAlwaysOnTop(true, "screen-saver");
+  win.setAlwaysOnTop(true, "floating"); // above content, BELOW the Dock
   win.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
     skipTransformProcessType: true,
