@@ -41,7 +41,7 @@
     const { ipcRenderer } = require("electron");
     const v = document.getElementById("v");
 
-    const FADE = 3.0;        // seconds: smooth audio fade-IN (no fade-out)
+    const FADE = 1.5;        // seconds: smooth audio fade-IN (no fade-out)
     const HIDE_DELAY = 1300; // ms: wait for visual fade-out before hiding window
 
     // Web Audio gain ramp = sample-accurate, click-free fade-in.
