@@ -1,0 +1,18 @@
+# build artifacts / generated
+node_modules/
+prep/venv/
+prep/src/
+**/__pycache__/
+*.pyc
+
+# user clips + source media (never publish copyrighted video)
+clips/*.webm
+clips/_prev/
+clips/_rejected/
+manual renders/
+originals/
+
+# runtime
+agent.log
+*.log
+.DS_Store

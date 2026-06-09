@@ -1,0 +1,12 @@
+{
+  "name": "reality-check",
+  "version": "1.0.0",
+  "description": "Anti-doomscroll overlay: open a time-wasting site, a clip slides up bottom-right.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^42.3.3"
+  }
+}

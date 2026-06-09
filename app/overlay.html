@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    -webkit-user-select: none;
+  }
+  #wrap {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+  }
+  video {
+    display: block;
+    width: 300px;
+    height: auto;
+    /* start fully below, hidden -> slide + fade up into view */
+    transform: translateY(118%);
+    opacity: 0;
+    transition: transform 2.0s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.2s ease;
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
+    will-change: transform, opacity;
+  }
+  video.in {
+    transform: translateY(0);
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <video id="v" playsinline></video>
+  </div>
+  <script>
+    const { ipcRenderer } = require("electron");
+    const v = document.getElementById("v");
+
+    const FADE = 3.0;        // seconds: smooth audio fade-IN (no fade-out)
+    const HIDE_DELAY = 1300; // ms: wait for visual fade-out before hiding window
+
+    // Web Audio gain ramp = sample-accurate, click-free fade-in.
+    let actx = null, gain = null, wired = false;
+    function wireAudio() {
+      if (wired) return;
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      const node = actx.createMediaElementSource(v);
+      gain = actx.createGain();
+      node.connect(gain).connect(actx.destination);
+      wired = true;
+    }
+
+    ipcRenderer.on("play", (_e, src) => {
+      v.classList.remove("in");
+      v.src = src;
+      v.muted = false; // sound ON
+      v.currentTime = 0;
+      v.load();
+      v.onloadeddata = () => {
+        wireAudio();
+        if (actx.state === "suspended") actx.resume();
+        const now = actx.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(1.0, now + FADE); // smooth rise
+        // next frame so the CSS slide transition runs
+        requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add("in")));
+        v.play().catch(() => {});
+      };
+      v.onended = () => {
+        v.classList.remove("in"); // slide + fade back down
+        setTimeout(() => ipcRenderer.send("done"), HIDE_DELAY);
+      };
+    });
+  </script>
+</body>
+</html>
