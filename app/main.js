@@ -26,8 +26,10 @@ const DEFAULTS = {
   onSocials: true, // fire when you open a social site
   periodicOn: true, // also fire on a timer (toggle, keeps the minutes value)
   periodicMinutes: 7, // timer interval in minutes (fixed mode)
-  periodicMode: "fixed", // fixed = same gap every time | ramp = 1m, 2m, 3m... up to rampMax
-  rampMax: 20, // ramp mode: the gap grows by 1 minute per clip until it reaches this, then stays
+  periodicMode: "fixed", // fixed = same gap every time | ramp = gap grows each clip
+  rampFirst: 1, // ramp: the first clip comes after this many minutes
+  rampAdd: 1, // ramp: minutes added to the gap after each clip
+  rampMax: 20, // ramp: the gap stops growing here, then stays
   position: "bottom-right", // bottom-right|bottom-left|top-right|top-left|bottom-center|center
   pauseOnMedia: true, // don't fire while the camera or mic is in use (calls)
   visitCount: 0,
@@ -235,13 +237,14 @@ function startWatcher() {
 }
 
 const MIN_MS = Number(process.env.RC_MIN_MS) || 60000; // 1 minute (overridable for testing)
-let rampStep = 1; // ramp mode: minutes to wait before the next fire
+let rampWait = 1; // ramp mode: minutes to wait before the next fire
 
 function restartPeriodic() {
   clearInterval(periodicT);
   clearTimeout(periodicT);
   periodicT = null;
-  rampStep = 1; // any settings change (or app restart) starts the ramp over at 1 minute
+  // Any settings change (or app restart) starts the ramp over at its first gap.
+  rampWait = Math.max(1, Number(settings.rampFirst) || 1);
   if (!settings.periodicOn) return;
   if (settings.periodicMode === "ramp") {
     scheduleRamp();
@@ -255,13 +258,15 @@ function restartPeriodic() {
   }
 }
 
-// Ramp mode: wait 1 minute, then 2, then 3... until rampMax, then every rampMax.
+// Ramp mode, three knobs: first gap (rampFirst), minutes added after each
+// clip (rampAdd), and where the gap stops growing (rampMax).
 function scheduleRamp() {
+  const add = Math.max(1, Number(settings.rampAdd) || 1);
   const max = Math.max(1, Number(settings.rampMax) || 20);
-  const wait = Math.min(rampStep, max);
+  const wait = Math.min(rampWait, max);
   periodicT = setTimeout(() => {
     if (!settings.paused) fire();
-    rampStep = Math.min(wait + 1, max);
+    rampWait = Math.min(wait + add, max);
     scheduleRamp();
   }, wait * MIN_MS);
 }
@@ -275,7 +280,7 @@ function openDashboard() {
   }
   dash = new BrowserWindow({
     width: 340,
-    height: 600,
+    height: 780,
     resizable: false,
     fullscreenable: false,
     title: "Reality Check",

@@ -73,7 +73,7 @@ Click the eye icon in the menu bar to open the dashboard (or pick Settings from 
 - Toggle whether it shows when you open a social site.
 - Toggle "pause during camera or mic use" so it stays quiet on calls (on by default).
 - Turn the timer on or off, and set how often it fires (minutes). Turning it off keeps your interval for next time.
-- Pick the timer style. "Same gap every time" fires at a fixed interval. "Ramp up" starts gentle and backs off: the first clip comes after 1 minute, the next after 2, then 3, and so on, until the gap reaches your "ramp up to" number (20 minutes by default), where it stays. Changing any timer setting (or restarting the app) starts the ramp over at 1 minute.
+- Pick the timer style. "Same gap every time" fires at a fixed interval. "Ramp up" starts gentle and backs off, with three plain decisions: when the first clip comes (default 1 minute), how many minutes each clip adds to the gap (default 1), and where the gap tops out (default every 20 minutes). A preview line shows the result, for example "Gaps: 1, 2, 3, 4... then every 20 min". Changing any timer setting (or restarting the app) starts the ramp over at its first gap.
 - Pick the position: any corner, bottom-center, center, or random corners. Top corners slide in from the top.
 
 Settings are saved automatically and survive restarts.
