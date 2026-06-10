@@ -70,11 +70,14 @@
     ipcRenderer.on("play", (_e, { src, position }) => {
       const pos = position || "bottom-right";
       wrap.className = pos;
-      let hide = "120%";
-      if (pos.startsWith("top")) hide = "-120%"; // slide down from the top edge
-      else if (pos === "center") hide = "0%";    // center: fade only
+      const hide = pos.startsWith("top") ? "-120%" : pos === "center" ? "0%" : "120%";
+      // snap to the hidden start INSTANTLY (no animation) so the slide always
+      // begins from the correct edge (top corners start above the top edge).
+      v.style.transition = "none";
       v.style.setProperty("--hide", hide);
       v.classList.remove("in");
+      void v.offsetWidth; // force reflow to lock in the hidden state
+      v.style.transition = ""; // restore the CSS slide transition
 
       v.src = src;
       v.muted = false; // sound ON
