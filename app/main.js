@@ -25,7 +25,9 @@ const DEFAULTS = {
   paused: false,
   onSocials: true, // fire when you open a social site
   periodicOn: true, // also fire on a timer (toggle, keeps the minutes value)
-  periodicMinutes: 7, // timer interval in minutes
+  periodicMinutes: 7, // timer interval in minutes (fixed mode)
+  periodicMode: "fixed", // fixed = same gap every time | ramp = 1m, 2m, 3m... up to rampMax
+  rampMax: 20, // ramp mode: the gap grows by 1 minute per clip until it reaches this, then stays
   position: "bottom-right", // bottom-right|bottom-left|top-right|top-left|bottom-center|center
   pauseOnMedia: true, // don't fire while the camera or mic is in use (calls)
   visitCount: 0,
@@ -232,15 +234,36 @@ function startWatcher() {
   }, POLL_MS);
 }
 
+const MIN_MS = Number(process.env.RC_MIN_MS) || 60000; // 1 minute (overridable for testing)
+let rampStep = 1; // ramp mode: minutes to wait before the next fire
+
 function restartPeriodic() {
   clearInterval(periodicT);
+  clearTimeout(periodicT);
   periodicT = null;
-  const m = Number(settings.periodicMinutes) || 0;
-  if (settings.periodicOn && m > 0) {
-    periodicT = setInterval(() => {
-      if (!settings.paused) fire();
-    }, m * 60000);
+  rampStep = 1; // any settings change (or app restart) starts the ramp over at 1 minute
+  if (!settings.periodicOn) return;
+  if (settings.periodicMode === "ramp") {
+    scheduleRamp();
+  } else {
+    const m = Number(settings.periodicMinutes) || 0;
+    if (m > 0) {
+      periodicT = setInterval(() => {
+        if (!settings.paused) fire();
+      }, m * 60000);
+    }
   }
+}
+
+// Ramp mode: wait 1 minute, then 2, then 3... until rampMax, then every rampMax.
+function scheduleRamp() {
+  const max = Math.max(1, Number(settings.rampMax) || 20);
+  const wait = Math.min(rampStep, max);
+  periodicT = setTimeout(() => {
+    if (!settings.paused) fire();
+    rampStep = Math.min(wait + 1, max);
+    scheduleRamp();
+  }, wait * MIN_MS);
 }
 
 // ---------- dashboard window ----------
@@ -252,7 +275,7 @@ function openDashboard() {
   }
   dash = new BrowserWindow({
     width: 340,
-    height: 556,
+    height: 600,
     resizable: false,
     fullscreenable: false,
     title: "Reality Check",

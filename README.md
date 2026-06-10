@@ -73,6 +73,7 @@ Click the eye icon in the menu bar to open the dashboard (or pick Settings from 
 - Toggle whether it shows when you open a social site.
 - Toggle "pause during camera or mic use" so it stays quiet on calls (on by default).
 - Turn the timer on or off, and set how often it fires (minutes). Turning it off keeps your interval for next time.
+- Pick the timer style. "Same gap every time" fires at a fixed interval. "Ramp up" starts gentle and backs off: the first clip comes after 1 minute, the next after 2, then 3, and so on, until the gap reaches your "ramp up to" number (20 minutes by default), where it stays. Changing any timer setting (or restarting the app) starts the ramp over at 1 minute.
 - Pick the position: any corner, bottom-center, center, or random corners. Top corners slide in from the top.
 
 Settings are saved automatically and survive restarts.
@@ -87,7 +88,7 @@ Settings are saved automatically and survive restarts.
 
 ## Configure
 
-Most settings live in the dashboard (pause, timer on/off and interval, position, socials toggle, camera/mic pause, visit count) and persist across restarts. Advanced bits stay in the source:
+Most settings live in the dashboard (pause, timer on/off, timer style and interval, position, socials toggle, camera/mic pause, visit count) and persist across restarts. Advanced bits stay in the source:
 - `app/main.js` `SITES`: the trigger domains. `COOLDOWN_MS`: minimum gap between site triggers. `NO_REPEAT`: how many recent clips to skip.
 - `app/overlay.html`: clip display `width`, slide `transition` duration, `FADE` and `FLOOR` (the audio fades in from `FLOOR`, not from silence).
 - `prep/make_lean.py`: clip output size and rate (`MAX_W` 360, `FPS` 24) and the key tightness.
