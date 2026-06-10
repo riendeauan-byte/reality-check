@@ -84,8 +84,12 @@
     <label class="sw"><input type="checkbox" id="pauseOnMedia"><span class="sl"></span></label>
   </div>
   <div class="row">
-    <label>Also play every</label>
-    <span><input type="number" id="freq" min="0" max="600" step="1"> min</span>
+    <label>Also play on a timer</label>
+    <label class="sw"><input type="checkbox" id="periodicOn"><span class="sl"></span></label>
+  </div>
+  <div class="row">
+    <label>Timer interval</label>
+    <span><input type="number" id="freq" min="1" max="600" step="1"> min</span>
   </div>
   <div class="row">
     <label>Position</label>
@@ -109,6 +113,7 @@
       $("count").textContent = s.visitCount ?? 0;
       $("onSocials").checked = !!s.onSocials;
       $("pauseOnMedia").checked = s.pauseOnMedia !== false;
+      $("periodicOn").checked = s.periodicOn !== false;
       $("freq").value = s.periodicMinutes ?? 7;
       $("position").value = s.position || "bottom-right";
       const PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
@@ -128,7 +133,8 @@
     $("reset").onclick = () => ipcRenderer.send("reset-count");
     $("onSocials").onchange = (e) => set({ onSocials: e.target.checked });
     $("pauseOnMedia").onchange = (e) => set({ pauseOnMedia: e.target.checked });
-    $("freq").onchange = (e) => set({ periodicMinutes: Math.max(0, parseInt(e.target.value || "0", 10)) });
+    $("periodicOn").onchange = (e) => set({ periodicOn: e.target.checked });
+    $("freq").onchange = (e) => set({ periodicMinutes: Math.max(1, parseInt(e.target.value || "7", 10)) });
     $("position").onchange = (e) => set({ position: e.target.value });
   </script>
 </body>

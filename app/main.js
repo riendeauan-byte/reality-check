@@ -24,7 +24,8 @@ const SETTINGS_PATH = path.join(app.getPath("userData"), "settings.json");
 const DEFAULTS = {
   paused: false,
   onSocials: true, // fire when you open a social site
-  periodicMinutes: 7, // also fire every N minutes (0 = off)
+  periodicOn: true, // also fire on a timer (toggle, keeps the minutes value)
+  periodicMinutes: 7, // timer interval in minutes
   position: "bottom-right", // bottom-right|bottom-left|top-right|top-left|bottom-center|center
   pauseOnMedia: true, // don't fire while the camera or mic is in use (calls)
   visitCount: 0,
@@ -235,7 +236,7 @@ function restartPeriodic() {
   clearInterval(periodicT);
   periodicT = null;
   const m = Number(settings.periodicMinutes) || 0;
-  if (m > 0) {
+  if (settings.periodicOn && m > 0) {
     periodicT = setInterval(() => {
       if (!settings.paused) fire();
     }, m * 60000);
@@ -251,7 +252,7 @@ function openDashboard() {
   }
   dash = new BrowserWindow({
     width: 340,
-    height: 512,
+    height: 556,
     resizable: false,
     fullscreenable: false,
     title: "Reality Check",
