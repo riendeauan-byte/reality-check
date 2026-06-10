@@ -39,13 +39,19 @@
   }
   input[type="number"] { width: 64px; text-align: right; }
 
-  button {
-    width: 100%; padding: 10px; border: 0; border-radius: 9px;
-    font: 600 13px -apple-system, system-ui, sans-serif; cursor: pointer;
+  button { border: 0; cursor: pointer; font: 600 13px -apple-system, system-ui, sans-serif; }
+  #preview { width: 100%; padding: 10px; border-radius: 9px; background: #2a2a2a; color: #ddd; }
+  .toggle-wrap { display: flex; justify-content: center; margin: 6px 0 6px; }
+  #pause {
+    width: 92px; height: 92px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #2e9b4f; box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+    transition: transform .12s ease, background .15s ease;
   }
-  #pause { background: #e5533b; color: #fff; margin-bottom: 8px; }
-  #pause.paused { background: #2e9b4f; }
-  #preview { background: #2a2a2a; color: #ddd; }
+  #pause:active { transform: scale(0.94); }
+  #pause.paused { background: #e5533b; }
+  #pause svg { width: 36px; height: 36px; fill: #fff; }
+  .hint { text-align: center; color: #888; font-size: 11px; margin: 4px 0 14px; }
 
   /* iOS-style switch */
   .sw { position: relative; width: 40px; height: 23px; }
@@ -60,7 +66,8 @@
   <h1>Reality Check</h1>
   <div class="sub">anti-doomscroll overlay</div>
 
-  <button id="pause">Pause</button>
+  <div class="toggle-wrap"><button id="pause" aria-label="pause/resume"></button></div>
+  <div class="hint" id="phint">running</div>
   <button id="preview">Play a clip now</button>
 
   <div class="count" style="margin-top:14px;">
@@ -85,6 +92,7 @@
       <option value="top-right">Top right</option>
       <option value="top-left">Top left</option>
       <option value="center">Center</option>
+      <option value="random-corners">Random corners</option>
     </select>
   </div>
 
@@ -98,9 +106,12 @@
       $("onSocials").checked = !!s.onSocials;
       $("freq").value = s.periodicMinutes ?? 7;
       $("position").value = s.position || "bottom-right";
+      const PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+      const PAUSE = '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
       const p = $("pause");
-      p.textContent = s.paused ? "Resume" : "Pause";
       p.classList.toggle("paused", !!s.paused);
+      p.innerHTML = s.paused ? PLAY : PAUSE;
+      $("phint").textContent = s.paused ? "paused" : "running";
     }
     function set(patch) { ipcRenderer.send("set-settings", patch); }
 

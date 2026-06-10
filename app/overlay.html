@@ -11,8 +11,8 @@
     overflow: hidden;
     -webkit-user-select: none;
   }
+  /* anchor: where on screen */
   #wrap { position: absolute; }
-  /* anchor per chosen position */
   #wrap.bottom-right  { right: 0;  bottom: 0; }
   #wrap.bottom-left   { left: 0;   bottom: 0; }
   #wrap.bottom-center { left: 50%; bottom: 0; transform: translateX(-50%); }
@@ -25,17 +25,16 @@
     width: 300px;
     height: auto;
     opacity: 0;
+    /* slide in from --hide (bottom corners: below; top corners: above) */
+    transform: translateY(var(--hide, 120%));
     transition: transform 2s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.2s ease;
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
     will-change: transform, opacity;
   }
-  /* hidden start state slides from the nearest edge (or scales, for center) */
-  video[data-pos="bottom-right"], video[data-pos="bottom-left"], video[data-pos="bottom-center"] { transform: translateY(120%); }
-  video[data-pos="top-right"], video[data-pos="top-left"] { transform: translateY(-120%); }
-  video[data-pos="center"] { transform: scale(0.9); }
-  /* shown state */
-  video.in { transform: translateY(0) !important; opacity: 1; }
-  video.in[data-pos="center"] { transform: scale(1) !important; }
+  video.in {
+    opacity: 1;
+    transform: translateY(0);
+  }
 </style>
 </head>
 <body>
@@ -50,38 +49,44 @@
     const FADE = 1.5;        // seconds: smooth audio fade-IN (no fade-out)
     const HIDE_DELAY = 1300; // ms: wait for visual fade-out before hiding window
 
-    // Web Audio gain ramp = sample-accurate, click-free fade-in.
     let actx = null, gain = null, wired = false;
-    function wireAudio() {
-      if (wired) return;
-      actx = new (window.AudioContext || window.webkitAudioContext)();
-      const node = actx.createMediaElementSource(v);
-      gain = actx.createGain();
-      node.connect(gain).connect(actx.destination);
-      wired = true;
+    function fadeInAudio() {
+      try {
+        if (!wired) {
+          actx = new (window.AudioContext || window.webkitAudioContext)();
+          const node = actx.createMediaElementSource(v);
+          gain = actx.createGain();
+          node.connect(gain).connect(actx.destination);
+          wired = true;
+        }
+        if (actx.state === "suspended") actx.resume();
+        const now = actx.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(1.0, now + FADE);
+      } catch (_) {}
     }
 
     ipcRenderer.on("play", (_e, { src, position }) => {
       const pos = position || "bottom-right";
       wrap.className = pos;
-      v.dataset.pos = pos;
+      let hide = "120%";
+      if (pos.startsWith("top")) hide = "-120%"; // slide down from the top edge
+      else if (pos === "center") hide = "0%";    // center: fade only
+      v.style.setProperty("--hide", hide);
       v.classList.remove("in");
+
       v.src = src;
       v.muted = false; // sound ON
       v.currentTime = 0;
       v.load();
       v.onloadeddata = () => {
-        wireAudio();
-        if (actx.state === "suspended") actx.resume();
-        const now = actx.currentTime;
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(1.0, now + FADE); // smooth rise
+        fadeInAudio();
         requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add("in")));
         v.play().catch(() => {});
       };
       v.onended = () => {
-        v.classList.remove("in"); // slide/fade back out
+        v.classList.remove("in");
         setTimeout(() => ipcRenderer.send("done"), HIDE_DELAY);
       };
     });

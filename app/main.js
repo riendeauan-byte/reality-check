@@ -132,8 +132,13 @@ function fire() {
     visibleOnFullScreen: true,
     skipTransformProcessType: true,
   });
+  let pos = settings.position;
+  if (pos === "random-corners") {
+    const corners = ["bottom-right", "bottom-left", "top-right", "top-left"];
+    pos = corners[Math.floor(Math.random() * corners.length)];
+  }
   overlay.showInactive();
-  overlay.webContents.send("play", { src, position: settings.position });
+  overlay.webContents.send("play", { src, position: pos });
   clearTimeout(safetyT);
   safetyT = setTimeout(() => {
     isPlaying = false;

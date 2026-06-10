@@ -69,7 +69,7 @@ Click the eye icon in the menu bar to open the dashboard (or pick Settings from 
 - See how many times you have opened a social site, with a reset.
 - Play a clip now.
 - Set how often it also fires on a timer (minutes, 0 turns the timer off).
-- Pick the position: any corner, bottom-center, or center.
+- Pick the position: any corner, bottom-center, center, or random corners.
 - Toggle whether it shows when you open a social site.
 
 Settings are saved automatically and survive restarts.
