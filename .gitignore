@@ -4,6 +4,8 @@ prep/venv/
 prep/src/
 **/__pycache__/
 *.pyc
+app/sensors/mediastate
+app/sensors/*.dSYM
 
 # user clips + source media (never publish copyrighted video)
 clips/*.webm

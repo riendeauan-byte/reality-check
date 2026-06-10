@@ -80,6 +80,10 @@
     <label class="sw"><input type="checkbox" id="onSocials"><span class="sl"></span></label>
   </div>
   <div class="row">
+    <label>Pause during camera or mic use</label>
+    <label class="sw"><input type="checkbox" id="pauseOnMedia"><span class="sl"></span></label>
+  </div>
+  <div class="row">
     <label>Also play every</label>
     <span><input type="number" id="freq" min="0" max="600" step="1"> min</span>
   </div>
@@ -104,6 +108,7 @@
     function render() {
       $("count").textContent = s.visitCount ?? 0;
       $("onSocials").checked = !!s.onSocials;
+      $("pauseOnMedia").checked = s.pauseOnMedia !== false;
       $("freq").value = s.periodicMinutes ?? 7;
       $("position").value = s.position || "bottom-right";
       const PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
@@ -122,6 +127,7 @@
     $("preview").onclick = () => ipcRenderer.send("preview");
     $("reset").onclick = () => ipcRenderer.send("reset-count");
     $("onSocials").onchange = (e) => set({ onSocials: e.target.checked });
+    $("pauseOnMedia").onchange = (e) => set({ pauseOnMedia: e.target.checked });
     $("freq").onchange = (e) => set({ periodicMinutes: Math.max(0, parseInt(e.target.value || "0", 10)) });
     $("position").onchange = (e) => set({ position: e.target.value });
   </script>

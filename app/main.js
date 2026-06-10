@@ -26,6 +26,7 @@ const DEFAULTS = {
   onSocials: true, // fire when you open a social site
   periodicMinutes: 7, // also fire every N minutes (0 = off)
   position: "bottom-right", // bottom-right|bottom-left|top-right|top-left|bottom-center|center
+  pauseOnMedia: true, // don't fire while the camera or mic is in use (calls)
   visitCount: 0,
 };
 let settings = { ...DEFAULTS };
@@ -56,6 +57,39 @@ let safetyT = null;
 let periodicT = null;
 let recent = []; // recently played clips, to avoid repeats
 const NO_REPEAT = 20; // don't replay a clip seen in the last N fires
+
+// ---------- camera / mic in-use detection ----------
+// A tiny Swift helper reports the hardware "running somewhere" state, so this
+// catches ANY app using the camera or mic (Zoom, Meet, FaceTime, etc.), not a
+// hard-coded list. No camera/mic permission is needed for that state query.
+let mediaActive = false;
+const MEDIA_BIN = path.join(__dirname, "sensors", "mediastate");
+const MEDIA_SRC = path.join(__dirname, "sensors", "mediastate.swift");
+const MEDIA_POLL_MS = 3000;
+
+function ensureMediaBin(cb) {
+  if (fs.existsSync(MEDIA_BIN)) return cb(true);
+  // Best-effort build (needs Xcode Command Line Tools). If swiftc is missing,
+  // the feature just stays off and nothing else is affected.
+  execFile("swiftc", ["-O", "-o", MEDIA_BIN, MEDIA_SRC], { timeout: 60000 }, (err) =>
+    cb(!err && fs.existsSync(MEDIA_BIN))
+  );
+}
+function pollMedia() {
+  execFile(MEDIA_BIN, { timeout: 4000 }, (err, stdout) => {
+    if (err) return; // helper unavailable -> leave mediaActive off
+    mediaActive = /camera=1|mic=1/.test(stdout || "");
+    // If a call starts mid-clip, stop it right away so it doesn't disrupt.
+    if (mediaActive && isPlaying && settings.pauseOnMedia) stopOverlay();
+  });
+}
+function startMediaWatch() {
+  ensureMediaBin((ok) => {
+    if (!ok) return;
+    pollMedia();
+    setInterval(pollMedia, MEDIA_POLL_MS);
+  });
+}
 
 function activeDisplay() {
   try {
@@ -118,6 +152,7 @@ function chromeURL(cb) {
 
 function fire() {
   if (isPlaying || !overlay || settings.paused) return;
+  if (settings.pauseOnMedia && mediaActive) return; // don't disrupt a call
   let clips = [];
   try {
     clips = fs.readdirSync(CLIPS_DIR).filter((f) => f.endsWith(".webm"));
@@ -216,7 +251,7 @@ function openDashboard() {
   }
   dash = new BrowserWindow({
     width: 340,
-    height: 470,
+    height: 512,
     resizable: false,
     fullscreenable: false,
     title: "Reality Check",
@@ -290,6 +325,7 @@ app.whenReady().then(() => {
   createOverlay();
   createTray();
   startWatcher();
+  startMediaWatch();
   restartPeriodic();
   if (process.env.RC_DASH) openDashboard(); // RC_DASH=1 -> open dashboard (testing)
   if (process.env.RC_TEST) setTimeout(fire, 1500); // RC_TEST=1 -> play once

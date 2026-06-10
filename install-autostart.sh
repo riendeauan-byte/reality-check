@@ -13,6 +13,18 @@ if [ ! -x "$ELECTRON" ]; then
   exit 1
 fi
 
+# Build the camera/mic detector (optional; needs Xcode Command Line Tools).
+# Without it, the "pause during camera or mic use" feature simply stays off.
+if command -v swiftc >/dev/null 2>&1; then
+  if swiftc -O -o "$APP/sensors/mediastate" "$APP/sensors/mediastate.swift" 2>/dev/null; then
+    echo "Built camera/mic detector."
+  else
+    echo "Note: could not build the camera/mic detector (continuing without it)."
+  fi
+else
+  echo "Note: swiftc not found; camera/mic auto-pause stays off until Xcode Command Line Tools are installed."
+fi
+
 mkdir -p "$HOME/Library/LaunchAgents"
 cat > "$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
