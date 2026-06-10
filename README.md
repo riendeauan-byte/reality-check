@@ -44,9 +44,11 @@ Clips live in `clips/` as transparent WebM (VP9 with alpha). Drop in any number.
 
 2. A batch of green-screen renders in a `manual renders/` folder:
    ```
-   ./prep/make_from_green.sh
+   ./prep/make_lean.sh
    ```
-   Keys out `#00FF00`, auto-crops tight to the subject, writes one clip per file.
+   Keys out the green, auto-crops to the subject, scales down, and writes one
+   compact clip per file. It samples a few frames per clip instead of dumping
+   full frame sequences, so it stays light on disk even for a large batch.
 
 3. Auto-remove the background straight from YouTube clips:
    ```
