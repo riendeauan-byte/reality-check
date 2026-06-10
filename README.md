@@ -23,7 +23,7 @@ The clip plays with a transparent background (a cut-out, not a box) in a click-t
    ```
    cd app && npm install && cd ..
    ```
-3. Add at least one clip (see "Add clips"). The repo ships with none on purpose.
+3. The repo includes a set of ready-to-use clips in `clips/`. You can add your own too (see "Add clips").
 4. Start it, and have it launch at login:
    ```
    ./install-autostart.sh
@@ -108,7 +108,7 @@ Stops it, removes the login agent, leaves your clips in place.
 
 - Watches Chrome only by default. To watch another browser, edit `chromeURL` in `app/main.js` (swap the AppleScript app name).
 - It cannot draw over another app's native macOS fullscreen (its own Space). That is an OS limitation. Normal windows and browsing are always covered.
-- Bring your own clips. None are shipped, to avoid redistributing copyrighted video.
+- Clips in `clips/` are included with the project. You can add or replace them with your own at any time.
 
 ## License
 

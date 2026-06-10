@@ -7,8 +7,7 @@ prep/src/
 app/sensors/mediastate
 app/sensors/*.dSYM
 
-# user clips + source media (never publish copyrighted video)
-clips/*.webm
+# heavy source media + scratch (the app ships the finished clips/, not these)
 clips/_prev/
 clips/_rejected/
 manual renders/
