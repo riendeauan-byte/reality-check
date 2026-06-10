@@ -9,8 +9,18 @@ ELECTRON="$APP/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
 LOG="$ROOT/agent.log"
 
 if [ ! -x "$ELECTRON" ]; then
-  echo "Electron binary not found at $ELECTRON. Run 'npm install' in $APP first." >&2
-  exit 1
+  echo "Electron binary not found — fetching it now (one-time ~120MB download)..."
+  if [ ! -d "$APP/node_modules/electron" ]; then
+    (cd "$APP" && npm install)
+  fi
+  # npm setups with ignore-scripts=true skip Electron's binary download; run it directly.
+  if [ ! -x "$ELECTRON" ] && [ -f "$APP/node_modules/electron/install.js" ]; then
+    (cd "$APP" && env -u ELECTRON_SKIP_BINARY_DOWNLOAD node node_modules/electron/install.js)
+  fi
+  if [ ! -x "$ELECTRON" ]; then
+    echo "Could not download Electron. Check your internet connection, then re-run this script." >&2
+    exit 1
+  fi
 fi
 
 # Build the camera/mic detector (optional; needs Xcode Command Line Tools).
