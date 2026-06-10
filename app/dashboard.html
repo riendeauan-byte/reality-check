@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 13px -apple-system, system-ui, sans-serif;
+    background: #161616;
+    color: #eee;
+    padding: 16px;
+    -webkit-user-select: none;
+  }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: #888; font-size: 11px; margin-bottom: 14px; }
+
+  .count {
+    text-align: center;
+    background: #1f1f1f;
+    border: 1px solid #2c2c2c;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .count b { display: block; font-size: 30px; line-height: 1.1; }
+  .count span { color: #888; font-size: 11px; }
+  .count a { color: #6aa6ff; font-size: 11px; text-decoration: none; cursor: pointer; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-top: 1px solid #242424; gap: 10px;
+  }
+  .row label { color: #ddd; }
+  select, input[type="number"] {
+    background: #222; color: #eee; border: 1px solid #333;
+    border-radius: 7px; padding: 5px 7px; font: inherit;
+  }
+  input[type="number"] { width: 64px; text-align: right; }
+
+  button {
+    width: 100%; padding: 10px; border: 0; border-radius: 9px;
+    font: 600 13px -apple-system, system-ui, sans-serif; cursor: pointer;
+  }
+  #pause { background: #e5533b; color: #fff; margin-bottom: 8px; }
+  #pause.paused { background: #2e9b4f; }
+  #preview { background: #2a2a2a; color: #ddd; }
+
+  /* iOS-style switch */
+  .sw { position: relative; width: 40px; height: 23px; }
+  .sw input { opacity: 0; width: 0; height: 0; }
+  .sl { position: absolute; inset: 0; background: #3a3a3a; border-radius: 999px; transition: .15s; }
+  .sl:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .15s; }
+  .sw input:checked + .sl { background: #2e9b4f; }
+  .sw input:checked + .sl:before { transform: translateX(17px); }
+</style>
+</head>
+<body>
+  <h1>Reality Check</h1>
+  <div class="sub">anti-doomscroll overlay</div>
+
+  <button id="pause">Pause</button>
+  <button id="preview">Play a clip now</button>
+
+  <div class="count" style="margin-top:14px;">
+    <b id="count">0</b>
+    <span>social visits &nbsp;·&nbsp; <a id="reset">reset</a></span>
+  </div>
+
+  <div class="row">
+    <label>Show when I open socials</label>
+    <span class="sw"><input type="checkbox" id="onSocials"><span class="sl"></span></span>
+  </div>
+  <div class="row">
+    <label>Also play every</label>
+    <span><input type="number" id="freq" min="0" max="600" step="1"> min</span>
+  </div>
+  <div class="row">
+    <label>Position</label>
+    <select id="position">
+      <option value="bottom-right">Bottom right</option>
+      <option value="bottom-left">Bottom left</option>
+      <option value="bottom-center">Bottom center</option>
+      <option value="top-right">Top right</option>
+      <option value="top-left">Top left</option>
+      <option value="center">Center</option>
+    </select>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require("electron");
+    const $ = (id) => document.getElementById(id);
+    let s = {};
+
+    function render() {
+      $("count").textContent = s.visitCount ?? 0;
+      $("onSocials").checked = !!s.onSocials;
+      $("freq").value = s.periodicMinutes ?? 7;
+      $("position").value = s.position || "bottom-right";
+      const p = $("pause");
+      p.textContent = s.paused ? "Resume" : "Pause";
+      p.classList.toggle("paused", !!s.paused);
+    }
+    function set(patch) { ipcRenderer.send("set-settings", patch); }
+
+    ipcRenderer.on("settings", (_e, next) => { s = next; render(); });
+    ipcRenderer.send("get-settings");
+
+    $("pause").onclick = () => set({ paused: !s.paused });
+    $("preview").onclick = () => ipcRenderer.send("preview");
+    $("reset").onclick = () => ipcRenderer.send("reset-count");
+    $("onSocials").onchange = (e) => set({ onSocials: e.target.checked });
+    $("freq").onchange = (e) => set({ periodicMinutes: Math.max(0, parseInt(e.target.value || "0", 10)) });
+    $("position").onchange = (e) => set({ position: e.target.value });
+  </script>
+</body>
+</html>

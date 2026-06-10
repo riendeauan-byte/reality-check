@@ -11,34 +11,40 @@
     overflow: hidden;
     -webkit-user-select: none;
   }
-  #wrap {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-  }
+  #wrap { position: absolute; }
+  /* anchor per chosen position */
+  #wrap.bottom-right  { right: 0;  bottom: 0; }
+  #wrap.bottom-left   { left: 0;   bottom: 0; }
+  #wrap.bottom-center { left: 50%; bottom: 0; transform: translateX(-50%); }
+  #wrap.top-right     { right: 0;  top: 0; }
+  #wrap.top-left      { left: 0;   top: 0; }
+  #wrap.center        { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+
   video {
     display: block;
     width: 300px;
     height: auto;
-    /* start fully below, hidden -> slide + fade up into view */
-    transform: translateY(118%);
     opacity: 0;
-    transition: transform 2.0s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.2s ease;
+    transition: transform 2s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.2s ease;
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
     will-change: transform, opacity;
   }
-  video.in {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  /* hidden start state slides from the nearest edge (or scales, for center) */
+  video[data-pos="bottom-right"], video[data-pos="bottom-left"], video[data-pos="bottom-center"] { transform: translateY(120%); }
+  video[data-pos="top-right"], video[data-pos="top-left"] { transform: translateY(-120%); }
+  video[data-pos="center"] { transform: scale(0.9); }
+  /* shown state */
+  video.in { transform: translateY(0) !important; opacity: 1; }
+  video.in[data-pos="center"] { transform: scale(1) !important; }
 </style>
 </head>
 <body>
-  <div id="wrap">
+  <div id="wrap" class="bottom-right">
     <video id="v" playsinline></video>
   </div>
   <script>
     const { ipcRenderer } = require("electron");
+    const wrap = document.getElementById("wrap");
     const v = document.getElementById("v");
 
     const FADE = 1.5;        // seconds: smooth audio fade-IN (no fade-out)
@@ -55,7 +61,10 @@
       wired = true;
     }
 
-    ipcRenderer.on("play", (_e, src) => {
+    ipcRenderer.on("play", (_e, { src, position }) => {
+      const pos = position || "bottom-right";
+      wrap.className = pos;
+      v.dataset.pos = pos;
       v.classList.remove("in");
       v.src = src;
       v.muted = false; // sound ON
@@ -68,12 +77,11 @@
         gain.gain.cancelScheduledValues(now);
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.exponentialRampToValueAtTime(1.0, now + FADE); // smooth rise
-        // next frame so the CSS slide transition runs
         requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add("in")));
         v.play().catch(() => {});
       };
       v.onended = () => {
-        v.classList.remove("in"); // slide + fade back down
+        v.classList.remove("in"); // slide/fade back out
         setTimeout(() => ipcRenderer.send("done"), HIDE_DELAY);
       };
     });

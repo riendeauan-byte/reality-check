@@ -1,6 +1,6 @@
 # Reality Check
 
-A desktop pattern-interrupt for doomscrolling. When you open Instagram, YouTube, TikTok, X, Reddit, or Facebook in Chrome, a short video clip slides up in the bottom-right corner, plays once with sound, and slides away. It also fires once every few minutes on its own. macOS only.
+A desktop pattern-interrupt for doomscrolling. When you open Instagram, YouTube, TikTok, X, Reddit, or Facebook in Chrome, a short video clip slides up in the bottom-right corner, plays once with sound, and slides away. It also fires once every few minutes on its own. A menu-bar dashboard controls everything: pause, frequency, position, the socials toggle, and a counter of how many times you have opened a social site. macOS only.
 
 The clip plays with a transparent background (a cut-out, not a box) in a click-through, always-on-top overlay, so it never steals focus or blocks your clicks.
 
@@ -62,6 +62,18 @@ prep/venv/bin/pip install rembg pillow onnxruntime scipy
 
 Note on CapCut: CapCut cannot export a truly transparent video. Its MP4/MOV export bakes the removed area to solid black. Put your subject on a solid green background and export normally, then use `--green`.
 
+## Dashboard
+
+Click the eye icon in the menu bar to open the dashboard (or pick Settings from its menu). From there you can:
+- Pause or resume.
+- See how many times you have opened a social site, with a reset.
+- Play a clip now.
+- Set how often it also fires on a timer (minutes, 0 turns the timer off).
+- Pick the position: any corner, bottom-center, or center.
+- Toggle whether it shows when you open a social site.
+
+Settings are saved automatically and survive restarts.
+
 ## How it works
 
 - A watcher inside the Electron process asks Chrome for its active tab URL once a second.
@@ -71,16 +83,11 @@ Note on CapCut: CapCut cannot export a truly transparent video. Its MP4/MOV expo
 
 ## Configure
 
-In `app/main.js`:
-- `SITES`: the trigger domains.
-- `PERIODIC_MS`: the timer interval (default 7 minutes).
-- `COOLDOWN_MS`: minimum gap between site triggers.
+Most settings live in the dashboard (pause, frequency, position, socials toggle, visit count) and persist across restarts. Advanced bits stay in the source:
+- `app/main.js` `SITES`: the trigger domains. `COOLDOWN_MS`: minimum gap between site triggers.
+- `app/overlay.html`: clip `width`, slide `transition` duration, `FADE` (audio fade-in).
 
-In `app/overlay.html`:
-- clip `width` and the slide `transition` duration.
-- `FADE`: audio fade-in length.
-
-After any change, reload:
+After editing source, reload:
 ```
 launchctl kickstart -k "gui/$(id -u)/com.realitycheck.agent"
 ```

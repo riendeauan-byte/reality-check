@@ -1,8 +1,7 @@
-const { app, BrowserWindow, screen, ipcMain } = require("electron");
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage } = require("electron");
 const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const os = require("os");
 
 const CLIPS_DIR = path.join(__dirname, "..", "clips"); // <repo>/clips
 
@@ -19,24 +18,59 @@ const SITES = [
 
 const POLL_MS = 1000;
 const COOLDOWN_MS = 60000; // don't re-fire within 60s of arriving
-const PERIODIC_MS = 7 * 60 * 1000; // also show one every 7 minutes
 
-const WIN_W = 380;
-const WIN_H = 640;
+// ---------- settings (persisted) ----------
+const SETTINGS_PATH = path.join(app.getPath("userData"), "settings.json");
+const DEFAULTS = {
+  paused: false,
+  onSocials: true, // fire when you open a social site
+  periodicMinutes: 7, // also fire every N minutes (0 = off)
+  position: "bottom-right", // bottom-right|bottom-left|top-right|top-left|bottom-center|center
+  visitCount: 0,
+};
+let settings = { ...DEFAULTS };
 
-let win = null;
+function loadSettings() {
+  try {
+    settings = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf8")) };
+  } catch (_) {}
+}
+let saveT = null;
+function saveSettings() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try {
+      fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
+      fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+    } catch (_) {}
+  }, 150);
+}
+
+let overlay = null;
+let dash = null;
+let tray = null;
 let prevMatch = false;
 let lastFire = 0;
 let isPlaying = false;
 let safetyT = null;
+let periodicT = null;
 
-function createWindow() {
-  const { bounds } = screen.getPrimaryDisplay(); // full screen incl. under the Dock
-  win = new BrowserWindow({
-    width: WIN_W,
-    height: WIN_H,
-    x: bounds.x + bounds.width - WIN_W,
-    y: bounds.y + bounds.height - WIN_H,
+function activeDisplay() {
+  try {
+    return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  } catch (_) {
+    return screen.getPrimaryDisplay();
+  }
+}
+
+// ---------- overlay (full-screen transparent layer; clip placed via CSS) ----------
+function createOverlay() {
+  const b = activeDisplay().bounds;
+  overlay = new BrowserWindow({
+    x: b.x,
+    y: b.y,
+    width: b.width,
+    height: b.height,
     show: false,
     frame: false,
     transparent: true,
@@ -55,14 +89,13 @@ function createWindow() {
       autoplayPolicy: "no-user-gesture-required",
     },
   });
-
-  win.setAlwaysOnTop(true, "floating"); // above content, BELOW the Dock
-  win.setVisibleOnAllWorkspaces(true, {
+  overlay.setAlwaysOnTop(true, "floating"); // above content, BELOW the Dock
+  overlay.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
     skipTransformProcessType: true,
   });
-  win.setIgnoreMouseEvents(true); // click-through: never steals clicks
-  win.loadFile(path.join(__dirname, "overlay.html"));
+  overlay.setIgnoreMouseEvents(true); // click-through
+  overlay.loadFile(path.join(__dirname, "overlay.html"));
 }
 
 // Ask Chrome for the active tab URL. `is running` does NOT launch Chrome.
@@ -82,7 +115,7 @@ function chromeURL(cb) {
 }
 
 function fire() {
-  if (isPlaying || !win) return; // don't interrupt a clip already playing
+  if (isPlaying || !overlay || settings.paused) return;
   let clips = [];
   try {
     clips = fs.readdirSync(CLIPS_DIR).filter((f) => f.endsWith(".webm"));
@@ -92,29 +125,33 @@ function fire() {
   lastFire = Date.now();
   const pick = clips[Math.floor(Math.random() * clips.length)];
   const src = "file://" + path.join(CLIPS_DIR, pick);
-  // show on whichever display is active (cursor's screen), flush bottom-right
-  try {
-    const b = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).bounds;
-    win.setBounds({
-      x: b.x + b.width - WIN_W,
-      y: b.y + b.height - WIN_H,
-      width: WIN_W,
-      height: WIN_H,
-    });
-  } catch (_) {}
-  win.setAlwaysOnTop(true, "floating"); // above content, BELOW the Dock
-  win.setVisibleOnAllWorkspaces(true, {
+  const b = activeDisplay().bounds;
+  overlay.setBounds({ x: b.x, y: b.y, width: b.width, height: b.height });
+  overlay.setAlwaysOnTop(true, "floating");
+  overlay.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: true,
     skipTransformProcessType: true,
   });
-  win.showInactive();
-  win.webContents.send("play", src);
-  // safety: release the lock if 'done' never arrives (renderer hiccup)
+  overlay.showInactive();
+  overlay.webContents.send("play", { src, position: settings.position });
   clearTimeout(safetyT);
   safetyT = setTimeout(() => {
     isPlaying = false;
-    if (win) win.hide();
+    if (overlay) overlay.hide();
   }, 75000);
+}
+
+ipcMain.on("done", () => {
+  clearTimeout(safetyT);
+  isPlaying = false;
+  if (overlay) overlay.hide();
+});
+
+function bumpVisit() {
+  settings.visitCount++;
+  saveSettings();
+  pushToDash();
+  updateTray();
 }
 
 function startWatcher() {
@@ -122,27 +159,113 @@ function startWatcher() {
     chromeURL((url) => {
       const match = !!url && SITES.some((r) => r.test(url));
       const now = Date.now();
-      if (match && !prevMatch && now - lastFire > COOLDOWN_MS) {
-        lastFire = now;
-        fire();
+      if (match && !prevMatch) {
+        bumpVisit(); // count every arrival on a social site
+        if (!settings.paused && settings.onSocials && now - lastFire > COOLDOWN_MS) {
+          lastFire = now;
+          fire();
+        }
       }
       prevMatch = match;
     });
   }, POLL_MS);
 }
 
-ipcMain.on("done", () => {
-  clearTimeout(safetyT);
-  isPlaying = false;
-  if (win) win.hide();
+function restartPeriodic() {
+  clearInterval(periodicT);
+  periodicT = null;
+  const m = Number(settings.periodicMinutes) || 0;
+  if (m > 0) {
+    periodicT = setInterval(() => {
+      if (!settings.paused) fire();
+    }, m * 60000);
+  }
+}
+
+// ---------- dashboard window ----------
+function openDashboard() {
+  if (dash) {
+    dash.show();
+    dash.focus();
+    return;
+  }
+  dash = new BrowserWindow({
+    width: 340,
+    height: 470,
+    resizable: false,
+    fullscreenable: false,
+    title: "Reality Check",
+    webPreferences: { nodeIntegration: true, contextIsolation: false },
+  });
+  dash.loadFile(path.join(__dirname, "dashboard.html"));
+  dash.on("closed", () => {
+    dash = null;
+  });
+}
+function pushToDash() {
+  if (dash) dash.webContents.send("settings", settings);
+}
+
+ipcMain.on("get-settings", (e) => e.reply("settings", settings));
+ipcMain.on("set-settings", (e, patch) => {
+  settings = { ...settings, ...patch };
+  saveSettings();
+  restartPeriodic();
+  updateTray();
+  pushToDash();
 });
+ipcMain.on("reset-count", () => {
+  settings.visitCount = 0;
+  saveSettings();
+  pushToDash();
+  updateTray();
+});
+ipcMain.on("preview", () => fire());
+
+// ---------- tray (menu bar) ----------
+function trayImage() {
+  const img = nativeImage.createFromPath(path.join(__dirname, "trayTemplate.png"));
+  img.setTemplateImage(true);
+  return img;
+}
+function updateTray() {
+  if (!tray) return;
+  const menu = Menu.buildFromTemplate([
+    { label: "Settings…", click: openDashboard },
+    { label: "Play a clip now", click: () => fire() },
+    { type: "separator" },
+    {
+      label: settings.paused ? "Resume" : "Pause",
+      click: () => {
+        settings.paused = !settings.paused;
+        saveSettings();
+        updateTray();
+        pushToDash();
+      },
+    },
+    { type: "separator" },
+    { label: `Social visits: ${settings.visitCount}`, enabled: false },
+    { type: "separator" },
+    { label: "Quit", click: () => app.exit(0) },
+  ]);
+  tray.setContextMenu(menu);
+  tray.setToolTip(settings.paused ? "Reality Check (paused)" : "Reality Check");
+}
+function createTray() {
+  tray = new Tray(trayImage());
+  tray.on("click", openDashboard);
+  updateTray();
+}
 
 app.whenReady().then(() => {
   if (app.dock) app.dock.hide();
-  createWindow();
+  loadSettings();
+  createOverlay();
+  createTray();
   startWatcher();
-  setInterval(fire, PERIODIC_MS); // show one every 5 minutes regardless
-  if (process.env.RC_TEST) setTimeout(fire, 1500); // RC_TEST=1 -> play once immediately
+  restartPeriodic();
+  if (process.env.RC_DASH) openDashboard(); // RC_DASH=1 -> open dashboard (testing)
+  if (process.env.RC_TEST) setTimeout(fire, 1500); // RC_TEST=1 -> play once
 });
 
 app.on("window-all-closed", (e) => e.preventDefault()); // stay resident
