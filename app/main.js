@@ -54,6 +54,8 @@ let lastFire = 0;
 let isPlaying = false;
 let safetyT = null;
 let periodicT = null;
+let recent = []; // recently played clips, to avoid repeats
+const NO_REPEAT = 20; // don't replay a clip seen in the last N fires
 
 function activeDisplay() {
   try {
@@ -123,7 +125,15 @@ function fire() {
   if (!clips.length) return;
   isPlaying = true;
   lastFire = Date.now();
-  const pick = clips[Math.floor(Math.random() * clips.length)];
+  // Random, but never repeat a clip from the last NO_REPEAT fires (and so never
+  // the same one twice in a row). Fall back gracefully for tiny pools.
+  const ban = new Set(recent.slice(-Math.min(NO_REPEAT, clips.length - 1)));
+  let pool = clips.filter((c) => !ban.has(c));
+  if (!pool.length) pool = clips.filter((c) => c !== recent[recent.length - 1]);
+  if (!pool.length) pool = clips;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  recent.push(pick);
+  if (recent.length > NO_REPEAT * 2) recent = recent.slice(-NO_REPEAT * 2);
   const src = "file://" + path.join(CLIPS_DIR, pick);
   const b = activeDisplay().bounds;
   overlay.setBounds({ x: b.x, y: b.y, width: b.width, height: b.height });
@@ -151,6 +161,16 @@ ipcMain.on("done", () => {
   isPlaying = false;
   if (overlay) overlay.hide();
 });
+
+// Stop a clip that's playing right now (used by Pause).
+function stopOverlay() {
+  clearTimeout(safetyT);
+  isPlaying = false;
+  if (overlay) {
+    overlay.webContents.send("stop"); // pause playback + kill audio at once
+    overlay.hide();
+  }
+}
 
 function bumpVisit() {
   settings.visitCount++;
@@ -215,6 +235,7 @@ ipcMain.on("get-settings", (e) => e.reply("settings", settings));
 ipcMain.on("set-settings", (e, patch) => {
   settings = { ...settings, ...patch };
   saveSettings();
+  if (settings.paused && isPlaying) stopOverlay(); // pause stops it immediately
   restartPeriodic();
   updateTray();
   pushToDash();
@@ -243,6 +264,7 @@ function updateTray() {
       label: settings.paused ? "Resume" : "Pause",
       click: () => {
         settings.paused = !settings.paused;
+        if (settings.paused && isPlaying) stopOverlay(); // stop now
         saveSettings();
         updateTray();
         pushToDash();

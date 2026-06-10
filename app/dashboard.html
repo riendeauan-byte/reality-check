@@ -54,7 +54,7 @@
   .hint { text-align: center; color: #888; font-size: 11px; margin: 4px 0 14px; }
 
   /* iOS-style switch */
-  .sw { position: relative; width: 40px; height: 23px; }
+  .sw { position: relative; display: inline-block; width: 40px; height: 23px; cursor: pointer; }
   .sw input { opacity: 0; width: 0; height: 0; }
   .sl { position: absolute; inset: 0; background: #3a3a3a; border-radius: 999px; transition: .15s; }
   .sl:before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .15s; }
@@ -77,7 +77,7 @@
 
   <div class="row">
     <label>Show when I open socials</label>
-    <span class="sw"><input type="checkbox" id="onSocials"><span class="sl"></span></span>
+    <label class="sw"><input type="checkbox" id="onSocials"><span class="sl"></span></label>
   </div>
   <div class="row">
     <label>Also play every</label>

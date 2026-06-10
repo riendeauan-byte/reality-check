@@ -47,6 +47,7 @@
     const v = document.getElementById("v");
 
     const FADE = 0.8;        // seconds: smooth audio fade-IN (no fade-out)
+    const FLOOR = 0.45;      // fade STARTS here (audible), not from silence
     const HIDE_DELAY = 1300; // ms: wait for visual fade-out before hiding window
 
     let actx = null, gain = null, wired = false;
@@ -62,10 +63,24 @@
         if (actx.state === "suspended") actx.resume();
         const now = actx.currentTime;
         gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.setValueAtTime(FLOOR, now); // start audible, ramp up to full
         gain.gain.exponentialRampToValueAtTime(1.0, now + FADE);
       } catch (_) {}
     }
+
+    // Hard stop: pause playback and kill audio at once (pause = stop now).
+    function stopNow() {
+      try { v.pause(); } catch (_) {}
+      try {
+        if (gain && actx) {
+          const now = actx.currentTime;
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(0.0001, now);
+        }
+      } catch (_) {}
+      v.classList.remove("in");
+    }
+    ipcRenderer.on("stop", stopNow);
 
     ipcRenderer.on("play", (_e, { src, position }) => {
       const pos = position || "bottom-right";
