@@ -41,6 +41,21 @@
 
   button { border: 0; cursor: pointer; font: 600 13px -apple-system, system-ui, sans-serif; }
   #preview { width: 100%; padding: 10px; border-radius: 9px; background: #2a2a2a; color: #ddd; }
+
+  /* add a clip from a URL */
+  .addclip { margin-top: 10px; padding-top: 12px; border-top: 1px solid #242424; }
+  .addclip .lbl { color: #888; font-size: 11px; margin-bottom: 7px; }
+  #clipUrl {
+    width: 100%; background: #222; color: #eee; border: 1px solid #333;
+    border-radius: 7px; padding: 7px 8px; font: inherit;
+  }
+  .arow { display: flex; gap: 12px; align-items: center; margin: 9px 0; color: #bbb; }
+  .arow span { display: inline-flex; align-items: center; gap: 6px; }
+  #clipStart, #clipLen { width: 56px; text-align: center; }
+  #addClip {
+    width: 100%; padding: 9px; border-radius: 9px; background: #2a2a2a; color: #eee;
+  }
+  #addClip:disabled { opacity: .5; cursor: default; }
   .toggle-wrap { display: flex; justify-content: center; margin: 6px 0 6px; }
   #pause {
     width: 92px; height: 92px; border-radius: 50%;
@@ -124,6 +139,17 @@
     </select>
   </div>
 
+  <div class="addclip">
+    <div class="lbl">Add a clip from a URL</div>
+    <input id="clipUrl" type="text" placeholder="Paste a YouTube URL" />
+    <div class="arow">
+      <span>start <input id="clipStart" type="text" value="0:00" /></span>
+      <span>length <input id="clipLen" type="number" min="1" max="60" step="1" value="15" /> s</span>
+    </div>
+    <button id="addClip">Add clip</button>
+    <div class="hint" id="addStatus" style="margin:7px 0 0; min-height:14px;"></div>
+  </div>
+
   <script>
     const { ipcRenderer } = require("electron");
     const $ = (id) => document.getElementById(id);
@@ -176,6 +202,40 @@
     $("rampAdd").onchange = (e) => set({ rampAdd: num(e.target, 1) });
     $("rampMax").onchange = (e) => set({ rampMax: num(e.target, 20) });
     $("position").onchange = (e) => set({ position: e.target.value });
+
+    // ---- add a clip from a URL ----
+    const STAGE_TEXT = {
+      resolve: "Reading the URL…",
+      download: "Downloading…",
+      trim: "Clipping…",
+      matte: "Removing background…",
+      outline: "Adding white border…",
+      crop: "Cropping to the subject…",
+      encode: "Encoding…",
+    };
+    $("addClip").onclick = () => {
+      const url = $("clipUrl").value.trim();
+      if (!url) { $("addStatus").textContent = "Paste a URL first."; return; }
+      $("addClip").disabled = true;
+      $("addStatus").textContent = "Starting…";
+      ipcRenderer.send("add-clip", {
+        url,
+        start: $("clipStart").value.trim() || "0",
+        length: $("clipLen").value,
+      });
+    };
+    ipcRenderer.on("add-clip-progress", (_e, { stage }) => {
+      $("addStatus").textContent = STAGE_TEXT[stage] || stage;
+    });
+    ipcRenderer.on("add-clip-done", (_e, { ok, name, error }) => {
+      $("addClip").disabled = false;
+      if (ok) {
+        $("addStatus").textContent = `Added ✓  ${name} — it's in the pool now.`;
+        $("clipUrl").value = "";
+      } else {
+        $("addStatus").textContent = `Failed: ${error || "unknown error"}`;
+      }
+    });
   </script>
 </body>
 </html>

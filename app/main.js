@@ -1,5 +1,5 @@
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage } = require("electron");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
@@ -280,7 +280,7 @@ function openDashboard() {
   }
   dash = new BrowserWindow({
     width: 340,
-    height: 780,
+    height: 900,
     resizable: false,
     fullscreenable: false,
     title: "Reality Check",
@@ -311,6 +311,49 @@ ipcMain.on("reset-count", () => {
   updateTray();
 });
 ipcMain.on("preview", () => fire());
+
+// ---------- add a clip from a URL (download -> trim -> matte -> crop -> webm) ----------
+// Shells out to prep/add_from_url.sh, streams its RC:STAGE/RC:DONE/RC:ERR lines
+// back to the dashboard. The finished clip lands in clips/ and joins the random
+// pool on the next fire (no restart needed).
+const ADD_SCRIPT = path.join(__dirname, "..", "prep", "add_from_url.sh");
+// The menu-bar app runs under launchd with a sparse PATH; yt-dlp/ffmpeg live in
+// Homebrew. Prepend the usual locations so the pipeline can find them.
+const PREP_PATH = `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH || ""}`;
+let adding = false;
+ipcMain.on("add-clip", (_e, opts) => {
+  const { url, start, length } = opts || {};
+  const send = (ch, payload) => {
+    if (dash) dash.webContents.send(ch, payload);
+  };
+  if (adding) return send("add-clip-done", { ok: false, error: "already adding a clip" });
+  const u = (url || "").trim();
+  if (!u) return send("add-clip-done", { ok: false, error: "paste a URL first" });
+  adding = true;
+  const args = [ADD_SCRIPT, u, "--start", String(start || "0")];
+  if (length != null && String(length).trim() !== "") args.push("--len", String(length).trim());
+  const child = spawn("bash", args, { env: { ...process.env, PATH: PREP_PATH } });
+  let errLine = "";
+  const onData = (buf) => {
+    for (const line of buf.toString().split("\n")) {
+      const t = line.trim();
+      if (t.startsWith("RC:STAGE ")) send("add-clip-progress", { stage: t.slice(9).trim() });
+      else if (t.startsWith("RC:DONE ")) send("add-clip-done", { ok: true, name: t.slice(8).trim() });
+      else if (t.startsWith("RC:ERR ")) errLine = t.slice(7).trim();
+    }
+  };
+  child.stdout.on("data", onData);
+  child.stderr.on("data", onData); // RC:ERR is printed before a non-zero exit
+  child.on("error", (err) => {
+    adding = false;
+    send("add-clip-done", { ok: false, error: err.message });
+  });
+  child.on("close", (code) => {
+    adding = false;
+    // Success was already sent via RC:DONE; only report a failure here.
+    if (code !== 0) send("add-clip-done", { ok: false, error: errLine || `pipeline exited ${code}` });
+  });
+});
 
 // ---------- tray (menu bar) ----------
 function trayImage() {

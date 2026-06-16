@@ -34,7 +34,9 @@ To run once in the foreground for testing instead of installing: `./start.sh`
 
 ## Add clips
 
-Clips live in `clips/` as transparent WebM (VP9 with alpha). Drop in any number. One is picked at random each time it fires. Three ways to make them, all local and free:
+Clips live in `clips/` as transparent WebM (VP9 with alpha). Drop in any number. One is picked at random each time it fires.
+
+The easiest way is right in the dashboard: under "Add a clip from a URL," paste a link, set a start time and length, and click Add clip. It downloads, trims to your segment, removes the background, crops to the subject, and drops the cut-out into the pool, usable right away. The command-line options below do the same thing and are handy for batches:
 
 1. You already have a clip with a transparent or green background:
    ```
@@ -70,6 +72,7 @@ Note on CapCut: CapCut cannot export a truly transparent video. Its MP4/MOV expo
 Click the eye icon in the menu bar to open the dashboard (or pick Settings from its menu). The big round button is play/pause: pausing stops a clip that is on screen right away. From the dashboard you can also:
 - See how many times you have opened a social site, with a reset.
 - Play a clip now.
+- Add a clip from a URL: paste a link, set a start time and length, and it downloads, trims, removes the background, crops to the subject, and adds the cut-out to the pool. It plays live without a restart. Needs the small Python environment from "Add clips" plus `yt-dlp` and `ffmpeg`.
 - Toggle whether it shows when you open a social site.
 - Toggle "pause during camera or mic use" so it stays quiet on calls (on by default).
 - Turn the timer on or off, and set how often it fires (minutes). Turning it off keeps your interval for next time.
